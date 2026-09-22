@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Брожение — наблюдение</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="public">
+<header>
+  <h1>Брожение <span class="sub">наблюдение за гидрозатворами</span></h1>
+  <div class="head-right">
+    <span id="clock" class="chip"></span>
+    <span id="conn" class="badge badge-unknown">соединение…</span>
+  </div>
+</header>
+
+<div id="alerts"></div>
+
+<section id="zone-stats" class="zone-stats"></section>
+<div id="zone-stats-empty" class="empty" hidden>Зоны ещё не настроены.</div>
+
+<main>
+  <div class="split">
+    <div class="panel">
+      <div class="panel-head"><h2>Камера</h2><span id="cam-info" class="chip"></span></div>
+      <div class="stream-wrap">
+        <img id="stream" alt="Нет изображения с камеры">
+        <div id="stream-msg" class="stream-msg">Подключение к камере…</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>Активность за сутки</h2></div>
+      <canvas id="timeline-canvas" height="220"></canvas>
+      <p class="hint">Количество бульков по зонам за последние 24 часа.</p>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <span id="version"></span>
+  <span>Режим только для чтения</span>
+</footer>
+
+<script src="/static/public.js"></script>
+</body>
+</html>

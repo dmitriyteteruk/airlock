@@ -1,0 +1,15 @@
+# Зависимости счётчика бульков.
+#
+# Raspberry Pi 3 (Raspberry Pi OS): надёжнее ставить системные пакеты —
+#   sudo apt install python3-opencv python3-numpy python3-flask python3-yaml
+# они собраны под armv7l/arm64 и не требуют компиляции.
+#
+# Если ставите через pip на 32-битной Raspberry Pi OS, нужен индекс piwheels:
+#   pip install -r requirements.txt --extra-index-url https://www.piwheels.org/simple
+#
+# На ПК / 64-битной системе достаточно обычного: pip install -r requirements.txt
+
+numpy>=1.21
+opencv-python-headless>=4.5 ; python_version >= "3.9"
+flask>=1.1
+pyyaml>=5.4

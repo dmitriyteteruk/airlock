@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Гидрозатвор — счётчик бульков</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>Гидрозатвор <span class="sub">счётчик бульков</span></h1>
+  <div class="head-right">
+    <span id="conn" class="badge badge-unknown">соединение…</span>
+    <button id="btn-token" class="ghost" title="Токен доступа">ключ</button>
+  </div>
+</header>
+
+<div id="alerts"></div>
+
+<section class="summary">
+  <span id="sum-cam" class="chip">камера…</span>
+  <span id="sum-proc" class="chip">обработка…</span>
+  <span id="sum-session" class="chip"></span>
+  <button id="btn-reset" class="ghost sm">Сбросить счётчики</button>
+</section>
+<section id="zone-stats" class="zone-stats"></section>
+<div id="zone-stats-empty" class="empty" hidden>Зоны не заданы — перейдите во вкладку «Настройка зон» и обведите гидрозатворы.</div>
+
+<nav id="tabs">
+  <button class="tab-btn active" data-tab="live">Обзор</button>
+  <button class="tab-btn" data-tab="charts">Графики</button>
+  <button class="tab-btn" data-tab="roi">Настройка зон</button>
+  <button class="tab-btn" data-tab="camera">Камера</button>
+  <button class="tab-btn" data-tab="tuning">Пороги</button>
+  <button class="tab-btn" data-tab="log">Журнал</button>
+</nav>
+
+<main>
+  <section id="tab-live" class="tab active">
+    <div class="split">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Видео</h2>
+          <label class="inline"><input type="checkbox" id="stream-on" checked> поток</label>
+        </div>
+        <div class="stream-wrap">
+          <img id="stream" alt="Поток с камеры недоступен">
+          <div id="stream-msg" class="stream-msg">Запуск камеры…</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Состояние</h2></div>
+        <dl class="kv" id="sysinfo"></dl>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-charts" class="tab">
+    <div class="charts-bar">
+      <label class="inline">Автообновление
+        <select id="refresh-rate">
+          <option value="5">5 секунд</option>
+          <option value="15">15 секунд</option>
+          <option value="30">30 секунд</option>
+          <option value="60">1 минута</option>
+          <option value="300">5 минут</option>
+          <option value="900">15 минут</option>
+          <option value="1800">30 минут</option>
+          <option value="3600">60 минут</option>
+        </select>
+      </label>
+      <span id="refresh-hint" class="hint"></span>
+      <button id="btn-refresh-now" class="ghost sm">Обновить сейчас</button>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Сигнал движения</h2>
+        <select id="signal-roi"></select>
+      </div>
+      <canvas id="signal-canvas" height="180"></canvas>
+      <p class="hint">Сырой сигнал доли изменившихся пикселей. Каждый выброс выше зелёной линии — бульк.</p>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Активность брожения <span id="timeline-step" class="step-badge"></span></h2>
+        <select id="timeline-range">
+          <option value="60">1 час</option>
+          <option value="180" selected>3 часа</option>
+          <option value="720">12 часов</option>
+          <option value="1440">24 часа</option>
+          <option value="2880">48 часов</option>
+          <option value="10080">7 дней</option>
+          <option value="43200">30 дней</option>
+          <option value="86400">60 дней</option>
+        </select>
+      </div>
+      <canvas id="timeline-canvas" height="180"></canvas>
+    </div>
+  </section>
+
+  <section id="tab-roi" class="tab">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Выделите гидрозатвор рамкой</h2>
+        <span class="actions">
+          <button id="btn-reload-snap" class="ghost">Обновить снимок</button>
+          <button id="btn-clear-rois" class="ghost">Очистить</button>
+          <button id="btn-save-rois" class="primary">Сохранить и запустить подсчёт</button>
+        </span>
+      </div>
+      <p class="hint">
+        Зажмите левую кнопку и протяните рамку вокруг гидрозатвора. Чем плотнее рамка к гидрозатвору,
+        тем меньше ложных срабатываний и выше чувствительность к булькам.
+      </p>
+      <div class="canvas-wrap"><canvas id="roi-canvas"></canvas></div>
+      <div id="roi-msg" class="msg"></div>
+      <table class="grid" id="roi-editor-table">
+        <thead><tr><th>Название</th><th>x</th><th>y</th><th>ширина</th><th>высота</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="tab-camera" class="tab">
+    <div class="split">
+      <div class="panel">
+        <div class="panel-head"><h2>Настройки камеры</h2></div>
+        <div id="cam-caps" class="hint"></div>
+        <form id="camera-form" class="form">
+          <div class="field">
+            <label>Разрешение</label>
+            <select id="cam-res"></select>
+            <span class="desc">Смена разрешения перезапускает поток камеры.</span>
+          </div>
+          <div class="field">
+            <label>Экспозиция: режим</label>
+            <select id="cam-exp-mode"></select>
+          </div>
+          <div class="field">
+            <label>Экспозиция: значение</label>
+            <div class="row">
+              <input type="range" id="cam-exposure-r">
+              <input type="number" id="cam-exposure">
+            </div>
+            <span class="desc" id="cam-exposure-range"></span>
+          </div>
+          <div class="field">
+            <label>Яркость</label>
+            <div class="row">
+              <input type="range" id="cam-brightness-r">
+              <input type="number" id="cam-brightness">
+            </div>
+            <span class="desc" id="cam-brightness-range"></span>
+          </div>
+          <div class="field">
+            <label>Автофокус</label>
+            <select id="cam-autofocus">
+              <option value="0">Отключен</option>
+              <option value="1">Включен</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Фокус</label>
+            <div class="row">
+              <input type="range" id="cam-focus-r">
+              <input type="number" id="cam-focus">
+            </div>
+            <span class="desc" id="cam-focus-range"></span>
+          </div>
+        </form>
+        <div class="panel-head">
+          <span class="actions">
+            <button id="btn-cam-apply" class="primary">Применить</button>
+            <button id="btn-cam-save" class="ghost">Сохранить в конфиг</button>
+          </span>
+        </div>
+        <div id="cam-msg" class="msg"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Предпросмотр</h2>
+          <button id="btn-cam-preview" class="ghost sm">Обновить кадр</button>
+        </div>
+        <div class="stream-wrap">
+          <img id="cam-preview" alt="Предпросмотр камеры">
+          <div id="cam-preview-msg" class="stream-msg">Загрузка…</div>
+        </div>
+        <p class="hint">
+          «Применить» меняет настройки сразу и показывает результат здесь, ничего не сохраняя.
+          «Сохранить в конфиг» записывает значения в конфигурацию — после перезапуска сервиса они останутся.
+          При смене разрешения перерисуйте зоны, если они вышли за кадр.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-tuning" class="tab">
+    <div class="split">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Пороги детектора</h2>
+          <span class="actions">
+            <label class="inline">зона <select id="tune-roi"></select></label>
+            <button id="btn-reset-override" class="ghost" title="Вернуть зону к базовым параметрам">снять override</button>
+          </span>
+        </div>
+        <div id="tune-target" class="msg"></div>
+        <form id="settings-form" class="form"></form>
+        <div class="panel-head">
+          <span class="actions">
+            <button id="btn-apply" class="primary">Применить к выбранной зоне</button>
+            <button id="btn-suggest" class="ghost">Подобрать по зонам</button>
+          </span>
+        </div>
+        <div id="suggest-out" class="msg"></div>
+        <div id="suggest-table"></div>
+        <p class="hint">
+          Пороги настраиваются отдельно для каждой зоны: базовые значения задаются для всех,
+          а правка конкретной зоны сохраняет её как override. «Подобрать по зонам» считает
+          пороги для каждой зоны независимо и ничего не усредняет.
+        </p>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Замер сигнала</h2></div>
+        <dl class="kv" id="stats-info"></dl>
+        <p class="hint">
+          «Шум» — сигнал в покое, «Пики» — амплитуда зарегистрированных бульков.
+          Порог должен лежать между этими значениями, ближе к шуму.
+        </p>
+        <div class="panel-head"><h2>Параметры камеры</h2></div>
+        <dl class="kv" id="cam-info"></dl>
+        <p class="hint">
+          Отключите автоэкспозицию и автобаланс белого (<code>camera.controls</code> в config.yaml),
+          иначе их подстройка выглядит как движение и даёт ложные бульки.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-log" class="tab">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Последние события</h2>
+        <span class="actions">
+          <label class="inline"><input type="checkbox" id="log-auto" checked> обновлять</label>
+          <a id="btn-csv" class="ghost" href="/api/events.csv">Скачать CSV</a>
+        </span>
+      </div>
+      <table class="grid" id="events-table">
+        <thead><tr><th>#</th><th>Время</th><th>Зона</th><th>Амплитуда</th><th>Длит., с</th><th>Тип</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div id="events-empty" class="empty">Событий пока нет.</div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <span id="version"></span>
+  <span>Журнал: <code>data/events.jsonl</code></span>
+</footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
